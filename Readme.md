@@ -151,4 +151,4 @@ WHERE (bp > 100 QAND bp < 130) QOR (bp == 95);
 ## 🧾 License
 
 MIT License © 2025 QuantumSQL Lab
-Developed by **Sage (Phuket Quantum Research Initiative)**
+Developed by **Sage (Chalongphat naksaingsat)**
