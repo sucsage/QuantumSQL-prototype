@@ -1,251 +1,200 @@
-# ============================================================
-# ⚛️ QuantumSQL v4.8 — Superposition Logic Engine
-# Dual Logic: Classic (Boolean) + Quantum Amplitude Logic
-# ============================================================
-from qiskit import QuantumCircuit, transpile
-from qiskit_aer import AerSimulator
-from qiskit_aer.library import SaveStatevector
-import numpy as np
 import re
-from enum import Enum
+import numpy as np
+from qiskit import QuantumCircuit
+from qiskit.quantum_info import Statevector
+from qiskit_aer import AerSimulator
 
 
-# ------------------------------------------------------------
-# 🧩 Logic Mode Enum
-# ------------------------------------------------------------
-class QuantumLogicMode(Enum):
-    CLASSIC = 1
-    AMPLITUDE = 2
+# ===========================================
+# 🔹 Quantum Logic Core
+# ===========================================
+
+def quantum_classic_compare(value, threshold, op):
+    """Simulate simple qubit-based logic (classical mode using qubits)."""
+    qc = QuantumCircuit(1)
+    if (
+        (op == ">" and value > threshold)
+        or (op == "<" and value < threshold)
+        or (op == ">=" and value >= threshold)
+        or (op == "<=" and value <= threshold)
+        or (op == "==" and value == threshold)
+        or (op == "!=" and value != threshold)
+    ):
+        qc.x(0)  # flip to |1⟩ if condition true
+
+    state = Statevector.from_instruction(qc)
+    probs = np.abs(state.data) ** 2
+    return 1 if probs[1] > 0.5 else 0
 
 
-# ------------------------------------------------------------
-# ⚙️ Helper: Safe quantum-style compare
-# ------------------------------------------------------------
-def quantum_compare(val1, val2, op: str) -> int:
-    if op == ">":
-        return int(val1 > val2)
-    elif op == "<":
-        return int(val1 < val2)
-    elif op == ">=":
-        return int(val1 >= val2)
-    elif op == "<=":
-        return int(val1 <= val2)
-    elif op == "==":
-        return int(val1 == val2)
-    elif op == "!=":
-        return int(val1 != val2)
-    else:
-        raise ValueError(f"Unknown operator: {op}")
+def quantum_amplitude_logic(value: float, conditions: list) -> float:
+    """Simulate quantum logic using amplitude superposition (QAmplitude)."""
+    n = len(conditions)
+    qc = QuantumCircuit(n)
+
+    # Superposition all qubits
+    qc.h(range(n))
+
+    # Apply Z phase if condition is True
+    for i, (op, thr) in enumerate(conditions):
+        cond = (
+            (op == ">" and value > thr)
+            or (op == "<" and value < thr)
+            or (op == ">=" and value >= thr)
+            or (op == "<=" and value <= thr)
+            or (op == "==" and value == thr)
+            or (op == "!=" and value != thr)
+        )
+        if cond:
+            qc.z(i)
+
+    # Add quantum interference (simulate logical coupling)
+    for i in range(n - 1):
+        qc.cx(i, i + 1)
+
+    qc.h(range(n))
+    state = Statevector.from_instruction(qc)
+    probs = np.abs(state.data) ** 2
+    return float(np.mean(probs))
 
 
-# ------------------------------------------------------------
-# ⚛️ Quantum Operators (QAND / QOR)
-# ------------------------------------------------------------
-def QAND(qc: QuantumCircuit, qubits: list[int]):
-    """Quantum AND via multi-controlled Toffoli"""
-    if len(qubits) < 2:
-        return
-    qc.mcx(qubits[:-1], qubits[-1])
+# ===========================================
+# 🔹 Quantum Table
+# ===========================================
 
-
-def QOR(qc: QuantumCircuit, qubits: list[int]):
-    """Quantum OR via CX fusion"""
-    if len(qubits) < 2:
-        return
-    for i in qubits[:-1]:
-        qc.cx(i, qubits[-1])
-
-
-def QNOT(qc: QuantumCircuit, qubit: int):
-    qc.x(qubit)
-
-
-# ------------------------------------------------------------
-# ⚛️ Quantum Superposition Evaluation
-# ------------------------------------------------------------
-def simulate_amplitude_logic(n_qubits: int, conditions: list[tuple[str, float, str]], row_value: float):
-    qc = QuantumCircuit(n_qubits)
-    qc.h(range(n_qubits))  # superposition state
-
-    # Condition qubits correspond to each condition
-    for i, (op, threshold, _) in enumerate(conditions):
-        result = quantum_compare(row_value, threshold, op)
-        if result == 1:
-            qc.x(i)  # mark true as |1⟩
-
-    # Combine all condition qubits by their logical operators
-    for i, (_, _, logic) in enumerate(conditions[:-1]):
-        if logic == "QAND":
-            QAND(qc, [i, i + 1])
-        elif logic == "QOR":
-            QOR(qc, [i, i + 1])
-
-    # ✅ เพิ่มบรรทัดนี้เพื่อให้ simulator เก็บ statevector
-    qc.append(SaveStatevector(len(qc.qubits)), qc.qubits)
-
-    backend = AerSimulator(method="statevector")
-    job = backend.run(transpile(qc, backend))
-    result = job.result()
-
-    # ✅ ดึง statevector อย่างถูกต้อง
-    state = result.data(0)["statevector"]
-    probs = np.abs(state) ** 2
-    p_match = float(np.sum(probs[len(probs)//2:]))  # amplitude in |1> sector
-    return p_match
-
-
-
-# ------------------------------------------------------------
-# 📦 Table class
-# ------------------------------------------------------------
 class QuantumTable:
-    def __init__(self, name: str, columns: list[str]):
+    def __init__(self, name, columns):
         self.name = name
         self.columns = columns
         self.rows = []
 
-    def insert(self, row: list[str]):
-        self.rows.append(row)
-        print(f"✅ Inserted {row} into {self.name}")
+    def insert(self, values):
+        self.rows.append(values)
+        print(f"✅ Inserted {values} into {self.name}")
 
-    # -------------------------------
-    # Classic Logic Mode
-    # -------------------------------
-    def quantum_select_classic(self, cond_func):
-        matches = [r for r in self.rows if cond_func(r)]
-        return matches
-
-    # -------------------------------
-    # Amplitude Logic Mode
-    # -------------------------------
-    def quantum_select_amplitude(self, colname: str, logic_conditions: list[tuple[str, float, str]]):
-        idx = self.columns.index(colname)
+    # --- Classic Qubit Mode ---
+    def quantum_select_classic(self, col, op, threshold):
+        idx = self.columns.index(col)
         results = []
-        for r in self.rows:
-            val = float(r[idx])
-            p = simulate_amplitude_logic(len(logic_conditions) + 1, logic_conditions, val)
-            results.append((r, p))
+        for row in self.rows:
+            v = float(row[idx])
+            if quantum_classic_compare(v, threshold, op):
+                results.append(row)
+        return results
+
+    # --- Quantum Amplitude Mode ---
+    def quantum_select_amplitude(self, col, logic_ops):
+        print("🧠 Quantum Amplitude Probabilities:")
+        idx = self.columns.index(col)
+        results = []
+        for row in self.rows:
+            v = float(row[idx])
+            p = quantum_amplitude_logic(v, logic_ops)
+            results.append((row, p))
+            print(f"   {row} → P={p:.2f}")
         return results
 
 
-# ------------------------------------------------------------
-# 🧠 QuantumSQLServer
-# ------------------------------------------------------------
+# ===========================================
+# 🔹 Quantum SQL Server
+# ===========================================
+
 class QuantumSQLServer:
     def __init__(self):
         self.databases = {}
         self.current_db = None
-        self.logic_mode = QuantumLogicMode.CLASSIC
-        print("⚛️ QuantumSQL v4.8 — Dual Logic Engine ready")
-
-    def set_logic_mode(self, mode: QuantumLogicMode):
-        self.logic_mode = mode
+        print("⚛️ QuantumSQL v4.9r3 — Interference Logic Engine ready")
 
     def execute(self, sql: str):
         sql = sql.strip()
+        cmd = sql.split()[0].upper()
 
-        # Detect database creation
-        if sql.upper().startswith("CREATE DATABASE"):
-            dbname = sql.split()[-1]
-            self.databases[dbname] = {}
-            self.current_db = dbname
-            print(f"✅ Database '{dbname}' created.")
-            return
+        # --- CREATE DATABASE ---
+        if cmd == "CREATE" and "DATABASE" in sql.upper():
+            name = sql.split()[-1]
+            self.databases[name] = {}
+            self.current_db = name
+            print(f"✅ Database '{name}' created.")
 
-        # Detect table creation
-        if sql.upper().startswith("CREATE TABLE"):
-            m = re.search(r"TABLE (\w+)", sql, re.I)
-            if m is None:
+        # --- CREATE TABLE ---
+        elif cmd == "CREATE" and "TABLE" in sql.upper():
+            m = re.match(r"CREATE TABLE (\w+) \((.+)\)", sql, re.I)
+            if not m:
+                print("❌ Syntax error in CREATE TABLE.")
                 return
-            name = m.group(1)
-            cols = re.findall(r"\((.*?)\)", sql)[0].split(",")
-            cols = [c.strip() for c in cols]
-            self.databases[self.current_db][name] = QuantumTable(name, cols)
-            print(f"✅ Table '{name}' created with columns {cols}")
-            return
+            tname, cols = m.groups()
+            cols = [c.strip() for c in cols.split(",")]
+            self.databases[self.current_db][tname] = QuantumTable(tname, cols)
+            print(f"✅ Table '{tname}' created with columns {cols}")
 
-        # Detect insert
-        if sql.upper().startswith("INSERT INTO"):
-            m = re.search(r"INSERT INTO (\w+).*VALUES\s*\((.*?)\)", sql, re.I)
-            if m is None:
+        # --- INSERT ---
+        elif cmd == "INSERT":
+            m = re.match(r"INSERT INTO (\w+) VALUES \((.+)\)", sql, re.I)
+            if not m:
+                print("❌ Syntax error in INSERT.")
                 return
-            name, values = m.group(1), m.group(2)
-            values = [v.strip().strip("'") for v in values.split(",")]
-            tb = self.databases[self.current_db][name]
-            tb.insert(values)
-            return
+            tname, values = m.groups()
+            vals = [v.strip().strip("'") for v in values.split(",")]
+            self.databases[self.current_db][tname].insert(vals)
 
-        # Detect SELECT
-        if sql.upper().startswith("SELECT"):
-            return self._handle_select(sql)
+        # --- SELECT ---
+        elif cmd == "SELECT":
+            m = re.match(r"SELECT \* FROM (\w+) WHERE (.+)", sql, re.I)
+            if not m:
+                print("❌ Syntax error in SELECT.")
+                return
+            tname, cond = m.groups()
+            tb = self.databases[self.current_db][tname]
 
-    # --------------------------------------------------------
-    # Handle SELECT (detect logic mode)
-    # --------------------------------------------------------
-    def _handle_select(self, sql: str):
-        m = re.search(r"FROM (\w+)", sql, re.I)
-        if not m:
-            print("❌ Syntax error: missing FROM <table> in SELECT.")
-            return
-        tb_name = m.group(1)
-        tb = self.databases[self.current_db][tb_name]
+            # Quantum Amplitude Mode
+            if any(q in cond.upper() for q in ["QAND", "QOR", "QNOT"]):
+                print("🧠 Quantum SELECT (Amplitude Mode):")
+                pattern = r"(\w+)\s*(>=|<=|==|!=|>|<)\s*([\d\.]+)"
+                found = re.findall(pattern, cond)
+                if not found:
+                    print("❌ No valid conditions found.")
+                    return
+                logic_ops = [(op, float(thr)) for (_, op, thr) in found]
+                tb.quantum_select_amplitude(found[0][0], logic_ops)
 
-        where = re.search(r"WHERE (.*)", sql, re.I)
-        condition_str = where.group(1).strip() if where else ""
+            # Classic Qubit Mode (supports AND / OR)
+            elif " and " in cond.lower() or " or " in cond.lower():
+                print("🧠 Quantum SELECT (Classic Qubit Mode):")
+                parts = re.split(r"\band\b|\bor\b", cond, flags=re.I)
+                operators = re.findall(r"\b(and|or)\b", cond, flags=re.I)
+                results = tb.rows
+                mask = set()
 
-        # auto mode detection
-        if "QAND" in condition_str or "QOR" in condition_str:
-            self.logic_mode = QuantumLogicMode.AMPLITUDE
-        else:
-            self.logic_mode = QuantumLogicMode.CLASSIC
+                for i, part in enumerate(parts):
+                    m2 = re.match(r"(\w+)\s*(>=|<=|==|!=|>|<)\s*(\d+)", part.strip())
+                    if not m2:
+                        continue
+                    col, op, val = m2.groups()
+                    val = float(val)
+                    sub_result = tb.quantum_select_classic(col, op, val)
+                    sub_set = set(tuple(r) for r in sub_result)
 
-        if self.logic_mode == QuantumLogicMode.CLASSIC:
-            print("\n🧠 Quantum SELECT (Classic Logic Mode):")
-            def cond_func(row):
-                env = {c: float(row[i]) if row[i].replace('.', '', 1).isdigit() else row[i]
-                       for i, c in enumerate(tb.columns)}
-                return eval(condition_str, {}, env)
+                    if i == 0:
+                        mask = sub_set
+                    else:
+                        if operators[i - 1].lower() == "and":
+                            mask &= sub_set
+                        else:
+                            mask |= sub_set
 
-            matches = tb.quantum_select_classic(cond_func)
-            print(f"🧠 Combined matches: {len(matches)} rows")
-            for m in matches:
-                print("   ", m)
-            return matches
+                final = [list(r) for r in mask]
+                print(f"🧠 Classic Qubit Logic Results ({cond}): {len(final)} matches")
+                for r in final:
+                    print("  ", r)
 
-        elif self.logic_mode == QuantumLogicMode.AMPLITUDE:
-            print("\n🧠 Quantum SELECT (Superposition Logic Mode):")
-            logic_conditions = self._parse_amplitude_conditions(condition_str)
-            colname = logic_conditions[0][0]
-            ops = [(op, val, logic) for (_, val, logic, op) in logic_conditions]
-            results = tb.quantum_select_amplitude(colname, ops)
-
-            print("🧠 Amplitude probabilities:")
-            for r, p in results:
-                print(f"   {r} → P={p:.2f}")
-            return results
-    # --------------------------------------------------------
-    # Parse condition string for amplitude mode (safe version)
-    # --------------------------------------------------------
-    def _parse_amplitude_conditions(self, cond_str: str):
-        # 🔹 จับกลุ่มเงื่อนไขเช่น "bp > 100", "bp <= 140", "bp == 95"
-        cond_pattern = r"(\w+)\s*(==|!=|>=|<=|>|<)\s*([\d\.]+)"
-        logic_pattern = r"\b(QAND|QOR|QNOT)\b"
-
-        conditions = []
-        logic_ops = re.findall(logic_pattern, cond_str)
-        conds = re.findall(cond_pattern, cond_str)
-
-        if not conds:
-            print("❌ Parse error: no valid quantum condition found.")
-            return []
-
-        # 🔹 รวมแต่ละ condition กับ logic ต่อท้าย
-        for i, (col, op, val) in enumerate(conds):
-            next_logic = logic_ops[i] if i < len(logic_ops) else None
-            conditions.append((col, float(val), next_logic, op))
-
-        # Debug-print logic tree
-        print("🧩 Parsed Quantum Conditions:")
-        for c in conditions:
-            print(f"   {c}")
-        return conditions
+            else:
+                print("🧠 Quantum SELECT (Classic Qubit Mode):")
+                m2 = re.match(r"(\w+)\s*(>=|<=|==|!=|>|<)\s*(\d+)", cond)
+                if not m2:
+                    print("❌ Unsupported condition.")
+                    return
+                col, op, val = m2.groups()
+                res = tb.quantum_select_classic(col, op, float(val))
+                print(f"🧠 Classic Qubit Logic Results ({cond}): {len(res)} matches")
+                for r in res:
+                    print("  ", r)
