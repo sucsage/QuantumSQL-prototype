@@ -1,4 +1,4 @@
-# ⚛️ QuantumSQL v7.4 — Distributed Cluster Grover Engine
+# ⚛️ QuantumSQL v0.7.4 — Distributed Cluster Grover Engine
 
 > **QuantumSQL** คือระบบฐานข้อมูลเชิงควอนตัม (Quantum-Relational Engine)
 > ที่สามารถรันคำสั่ง SQL Logic Tree (AND / OR / NOT / BETWEEN / >= / <= / nested group)
