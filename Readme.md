@@ -1,152 +1,155 @@
-# ⚛️ QuantumSQL v4.8 — Superposition Logic Engine
+# ⚛️ QuantumSQL v7.4 — Distributed Cluster Grover Engine
 
-**QuantumSQL v4.8** คือระบบจำลองฐานข้อมูลเชิงควอนตัม (Quantum Database Emulator)
-ที่ใช้หลักการของ **quantum superposition**, **amplitude probability** และ **quantum logic gates**
-เพื่อจำลองพฤติกรรมของ SQL Query (`SELECT`, `WHERE`, `AND`, `OR`, `NOT`) ในเชิงควอนตัม
+> **QuantumSQL** คือระบบฐานข้อมูลเชิงควอนตัม (Quantum-Relational Engine)
+> ที่สามารถรันคำสั่ง SQL Logic Tree (AND / OR / NOT / BETWEEN / >= / <= / nested group)
+> แล้วทำการ “สังเคราะห์เป็น Oracle” สำหรับ Quantum Search / Grover Amplification
+> และจำลองการรันแบบกระจาย (Distributed Quantum Simulation) ได้โดยอัตโนมัติ
 
 ---
 
-## 🧠 Concept Overview
+## 🚀 Highlights
 
-### 🔹 Classical SQL
+| ฟีเจอร์ | รายละเอียด |
+|----------|-------------|
+| 🧠 **Full SQL Parser** | รองรับการเขียน query ในรูปแบบ `(A >= 10 AND B <= 20) OR (C > 5 AND NOT D)` |
+| ⚙️ **Logic Tree Synthesizer** | แปลงเป็น Abstract Syntax Tree (AST) และสร้างวงจร Oracle อัตโนมัติ |
+| 🧩 **Quantum Oracle Builder** | สร้าง comparator, variable register, และ logical phase flip สำหรับแต่ละเงื่อนไข |
+| 🛰️ **Distributed Cluster Engine** | รันแบบ multi-processing หรือ GPU parallel หลาย node พร้อมกัน |
+| 🧮 **Hybrid Sparse Simulation** | ถ้าจำนวน qubits เกินขีดจำกัด จะ fallback เป็นโหมด sparse hybrid โดยอัตโนมัติ |
+| 📊 **Grover Diffusion Aggregation** | รวม amplitude จากหลาย batch กลับมาสร้าง probability vector สุดท้าย |
+| 🔋 **Memory Safe (≤2 GB)** | สามารถจำลองได้หลายพันแถวโดยไม่ต้องใช้ memory มากเกินไป |
 
-การประมวลผลแบบปกติจะใช้บิต (0/1) เพื่อระบุว่าแถวใด “เข้าเงื่อนไข” หรือ “ไม่เข้าเงื่อนไข”
+---
 
-```sql
-SELECT * FROM patients WHERE bp > 100 AND bp < 130;
+## 🧠 Architecture Overview
+
+```
+┌────────────────────────────────────────────┐
+│             SQL CONDITION INPUT            │
+│    e.g. (BP BETWEEN 100 AND 130)           │
+│          OR (TEMP > 38 AND NOT FEVER)      │
+└────────────────────────────────────────────┘
+                     │
+                     ▼
+┌────────────────────────────────────────────┐
+│        SQL PARSER & LOGIC TREE BUILDER     │
+│      → Abstract Syntax Tree (AST)          │
+└────────────────────────────────────────────┘
+                     │
+                     ▼
+┌────────────────────────────────────────────┐
+│           QUANTUM ORACLE SYNTHESIZER       │
+│  - Comparator encoding (>, <, >=, <=, ==)  │
+│  - Boolean ops (AND, OR, NOT)              │
+└────────────────────────────────────────────┘
+                     │
+                     ▼
+┌────────────────────────────────────────────┐
+│       DISTRIBUTED CLUSTER EXECUTION        │
+│   - Multiprocessing (N workers)            │
+│   - GPU/CPU hybrid fallback                │
+│   - Sparse simulation if qubits > 28       │
+└────────────────────────────────────────────┘
+                     │
+                     ▼
+┌────────────────────────────────────────────┐
+│           AMPLITUDE AGGREGATION            │
+│   Combine probabilities → normalized       │
+│   Identify top quantum states (matches)    │
+└────────────────────────────────────────────┘
 ```
 
-### ⚛️ Quantum SQL
-
-QuantumSQL ใช้ **qubit superposition** แทนบิต  ทุกแถวของข้อมูลจะถูกแปลงเป็น “สถานะควอนตัม” (|ψ⟩) ที่มีทั้ง True/False พร้อมกัน  โดยผลลัพธ์จะได้ **probability (P)** ซึ่งบ่งบอก “ความน่าจะเป็นเชิงควอนตัม”  ที่แถวนั้นจะเป็นจริงตามเงื่อนไขที่ให้ไว้
-
-> `P = |β|²`  คือ amplitude probability ของเงื่อนไขเป็นจริงหลังผ่านการสังเกต (measurement)
-
 ---
 
-## 🚀 Features
+## ⚙️ Installation
 
-| Feature                    | Description                                                           |
-| -------------------------- | --------------------------------------------------------------------- |
-| 🧩 Quantum Logic Engine    | ใช้ Qiskit จำลองการทำงานของ logic (AND / OR / NOT) ด้วย quantum gates |
-| 🌈 Superposition Logic     | รองรับ `QAND`, `QOR`, `QNOT` สำหรับการคำนวณแบบ superposition          |
-| 💡 Amplitude Probability   | แสดงค่า P ของแต่ละแถวแทน True/False                                   |
-| 🧮 Logic Tree Parser       | แปลงเงื่อนไขซ้อนกันเป็นต้นไม้เชิงตรรกะ (logic tree)                   |
-| 🔄 Classical Compatibility | ทำงานร่วมกับ query SQL ปกติ (`>`, `<`, `>=`, `<=`, `==`, `!=`)        |
-| ⚙️ Quantum Batch Engine    | รองรับ batch ข้อมูลจำนวนมาก (8 qubits ต่อ batch)                      |
+```bash
+git clone https://github.com/yourname/QuantumSQL.git
+cd QuantumSQL
+pip install qiskit qiskit-aer pandas numpy
+```
+
+> 🧩 Optional: ถ้ามี GPU  
+> ให้ติดตั้ง [Qiskit Aer GPU](https://qiskit.org/ecosystem/aer/stubs/qiskit_aer.AerSimulator.html#gpu-support)
+> เพื่อรันแบบ statevector บน CUDA ได้โดยตรง
 
 ---
 
 ## 🧪 Example
 
-### ✅ Setup
-
 ```python
-from quantum_sql import QuantumSQLServer
+from main import QuantumSQL
 
-srv = QuantumSQLServer()
-srv.create_database("hospital")
+rows = [
+    ["P1", 120, 36.7, 0],
+    ["P2", 110, 37.0, 1],
+    ["P3", 95, 36.5, 0],
+    ["P4", 140, 38.2, 1],
+    ["P5", 125, 37.5, 0],
+    ["P6", 128, 39.1, 1],
+    ["P7", 122, 36.8, 0],
+    ["P8", 99, 37.9, 1],
+    ["P9", 130, 38.8, 0],
+    ["P10", 115, 37.0, 0],
+]
 
-srv.execute("CREATE TABLE patients (id, name, bp)")
-srv.execute("INSERT INTO patients VALUES ('P1','sage',120)")
-srv.execute("INSERT INTO patients VALUES ('P2','gift',110)")
-srv.execute("INSERT INTO patients VALUES ('P3','kai',95)")
-srv.execute("INSERT INTO patients VALUES ('P4','mimi',140)")
-```
-
-### 🔍 Query Example
-
-```sql
-SELECT * FROM patients
-WHERE (bp > 100 QAND bp < 130) QOR (bp == 95);
-```
-
-#### 🧠 Output
-
-```
-🧩 Parsed Quantum Conditions:
-   ('bp', 100.0, 'QAND', '>')
-   ('bp', 130.0, 'QOR', '<')
-   ('bp', 95.0, None, '==')
-
-🧠 Amplitude probabilities:
-   ['P1', 'sage', '120'] → P=0.50
-   ['P2', 'gift', '110'] → P=0.50
-   ['P3', 'kai', '95']   → P=0.50
-   ['P4', 'mimi', '140'] → P=0.50
+qsql = QuantumSQL(["id", "bp", "temp", "fever"])
+probs, result = qsql.run_query(rows, "(BP BETWEEN 100 AND 130) OR (TEMP > 38 AND NOT FEVER)")
 ```
 
 ---
 
-## 🧬 Probability Meaning
-
-| P value           | Meaning                                                   |
-| ----------------- | --------------------------------------------------------- |
-| **P = 1.00**      | แถวนี้เข้าเงื่อนไขแน่นอน (fully true)                     |
-| **P = 0.00**      | แถวนี้ไม่เข้าเงื่อนไขแน่นอน (fully false)                 |
-| **0.0 < P < 1.0** | แถวนี้อยู่ใน superposition — เข้า/ไม่เข้าเงื่อนไขพร้อมกัน |
-
----
-
-## 🧠 Architecture
+## 🧩 Output Example
 
 ```
-┌──────────────────────────┐
-│ QuantumSQLServer         │
-│ ├── Databases            │
-│ ├── Tables               │
-│ └── Parser + Executor    │
-└────────────┬─────────────┘
-             │
-             ▼
-┌──────────────────────────┐
-│ QuantumTable             │
-│ ├── Quantum Encoding     │
-│ ├── Batch Qubit Engine   │
-│ ├── Logic Tree Processor │
-│ └── Amplitude Calculator │
-└──────────────────────────┘
+🧩 Normalized condition: ((BP >= 100 and BP <= 130)) or (TEMP > 38 and not FEVER)
+🌳 AST: ('OR', ('AND', ('CMP', 'bp', '>=', '100'), ('CMP', 'bp', '<=', '130')),
+              ('AND', ('CMP', 'temp', '>', '38'), ('NOT', ('VAR', 'fever'))))
+🛰️ Launching 5 cluster workers (mode=sparse) ...
+🔹 Aggregated 5 batches, total 10 rows.
+
+🧠 Top Quantum Matches:
+    id   bp  temp  fever
+0  P1  120  36.7      0
+1  P5  125  37.5      0
+2  P7  122  36.8      0
+3  P9  130  38.8      0
+
+🔹 Final normalized probability vector:
+ [0.1009 0.0991 0.1009 0.0991 0.1009 0.0991 0.1009 0.0991 0.1009 0.0991]
+
+✅ QuantumSQL v7.4 complete.
 ```
 
 ---
 
-## 🥮 Logic Operators
+## 💡 Developer Notes
 
-| Operator               | Classical         | Quantum Equivalent         |
-| ---------------------- | ----------------- | -------------------------- |
-| `AND`                  | Bitwise AND       | `QAND` → Superposition AND |
-| `OR`                   | Bitwise OR        | `QOR` → Superposition OR   |
-| `NOT`                  | Logical NOT       | `QNOT` → Quantum Negation  |
-| `==, !=, >, <, >=, <=` | Normal Comparison | Encoded as amplitude gates |
+- จำนวน qubits ทั้งหมดจะถูกจัดการอัตโนมัติตามขนาดของข้อมูล
+- หาก qubits > 28 → จะสลับเข้าสู่โหมด **Sparse Hybrid Simulation**
+- ถ้ามี GPU ที่รองรับ CUDA → จะใช้ `AerSimulator(device="GPU")`
+- รองรับ multiprocessing สูงสุด 8 workers ต่อเครื่อง
 
 ---
 
-## ⚙️ Quantum Backend
+## 📚 Future Roadmap
 
-ใช้ Qiskit **AerSimulator (statevector method)**  หรือ `Statevector.from_instruction()` เพื่อคำนวณ amplitude โดยตรง
+| Version | Feature | Description |
+|----------|----------|-------------|
+| **v7.5** | QuantumSQL Studio | Web dashboard สำหรับรัน query + ดู amplitude heatmap |
+| **v8.0** | Adaptive Quantum Optimizer | Hybrid Grover + VQE engine สำหรับ noise calibration |
+| **v8.5** | Quantum Neural Database | Self-learning condition inference (auto query synthesis) |
 
 ---
 
-## 📊 Example Output Summary
+## 🧠 Citation
+
+ถ้าใช้โปรเจกต์นี้ในงานวิจัย / บทความ กรุณาอ้างอิงดังนี้:
 
 ```
-🧠 Combined matches (P ≥ 0.5):
-    ['P1', 'sage', 120]
-    ['P2', 'gift', 110]
-    ['P3', 'kai', 95]
-    ['P6', 'kim', 111]
+Sage et al., "QuantumSQL: Distributed Cluster Grover Engine for Quantum Logic Queries", 
+Phuket Quantum Systems, 2025.
 ```
-
----
-
-## 🧩 Future Work (v5.0 Plan)
-
-* ใช้ **multi-register encoding** (value → binary qubits)
-* เพิ่ม **Quantum Arithmetic Logic (QALU)** สำหรับเงื่อนไขซับซ้อน
-* รองรับ **amplitude interference visualization**
-* เพิ่มโหมด **quantum join** ระหว่างตาราง
-
----
 
 ## 🧾 License
 
